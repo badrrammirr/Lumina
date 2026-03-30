@@ -7,7 +7,7 @@ Backend: Python, FastAPI, LangChain, ChromaDB
 AI Model: Groq (Llama 3)
 🚀 Local Setup
 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/lumina-ai.gitcd lumina-ai
+git clone https://github.com/badrrammirr/Lumina.gitcd Lumina
 2. Backend Setup
 Open a terminal in the Backend folder:
 
