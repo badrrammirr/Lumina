@@ -22,7 +22,7 @@ from adapt_quiz import generate_adaptive_quiz
 # --- 1. STARTUP LOGIC (Reset Data on Start) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Starting server... Resetting data folders...")
+    print("Starting server... Resetting data folders...")
     if PDF_FOLDER.exists():
         shutil.rmtree(PDF_FOLDER)
     PDF_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -34,9 +34,9 @@ async def lifespan(app: FastAPI):
     if processed_log.exists():
         processed_log.unlink()
 
-    print("🟢 Startup complete. Ready for new uploads.")
+    print("Startup complete. Ready for new uploads.")
     yield
-    print("🔴 Server shutting down.")
+    print("Server shutting down.")
 
 
 # --- 2. APP INITIALIZATION ---
