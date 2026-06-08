@@ -235,10 +235,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="divide-y divide-white/[0.04]">
+<div className="divide-y divide-white/[0.04]">
             {pdfs.map((p, i) => (
               <motion.div
-                key={i}
+                key={p}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1 + i * 0.05 }}

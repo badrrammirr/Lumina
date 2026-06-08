@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 import { logout, getMe } from '../api/api'
 
 export default function Navbar() {
-  const { dbReady, pdfs } = useApp()
+  const { dbReady, pdfs, clearUserData } = useApp()
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [user, setUser] = useState(null)
@@ -20,7 +20,7 @@ export default function Navbar() {
         const userData = await getMe()
         setUser(userData)
       } catch (error) {
-        console.error('Failed to fetch user:', error)
+        setUser(null)
       } finally {
         setLoading(false)
       }
@@ -31,10 +31,13 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await logout()
+    } catch (error) {
+      // Continue with logout even if API call fails
+    } finally {
+      localStorage.removeItem('access_token')
+      clearUserData()
       toast.success('Logged out successfully')
       navigate('/login')
-    } catch (error) {
-      toast.error('Logout failed')
     }
   }
 

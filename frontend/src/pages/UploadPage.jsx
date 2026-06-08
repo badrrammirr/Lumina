@@ -41,7 +41,7 @@ export default function UploadPage() {
           <div className="divide-y divide-white/[0.04]">
             {pdfs.map((p, i) => (
               <motion.div
-                key={i}
+                key={p}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 + i * 0.05 }}

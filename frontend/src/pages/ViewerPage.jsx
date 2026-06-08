@@ -1,11 +1,18 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useApp } from "../context/AppContext"
 import PDFViewer from "../components/PDFViewer"
 import { HiOutlineDocumentText, HiOutlineArrowTopRightOnSquare } from "react-icons/hi2"
 
 export default function ViewerPage() {
-  const { pdfs } = useApp()
+  const { pdfs, isAuthorized } = useApp()
   const [selectedPdf, setSelectedPdf] = useState("")
+
+  // Reset state when user logs out
+  useEffect(() => {
+    if (!isAuthorized) {
+      setSelectedPdf("")
+    }
+  }, [isAuthorized])
 
   const fileUrl = selectedPdf ? `http://127.0.0.1:8000/pdf-file/${encodeURIComponent(selectedPdf)}` : ""
 
@@ -29,9 +36,10 @@ export default function ViewerPage() {
           value={selectedPdf}
           onChange={(e) => setSelectedPdf(e.target.value)}
           className="flex-1 bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-sky-500/50 transition-colors cursor-pointer appearance-none"
+          disabled={!pdfs || pdfs.length === 0}
           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 12 12'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m3 4.5 3 3 3-3'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center' }}
         >
-          <option value="">Select a document to render...</option>
+          <option value="">{pdfs && pdfs.length > 0 ? "Select a document to render..." : "No documents uploaded"}</option>
           {pdfs.map((p) => (
             <option key={p} value={p}>{p}</option>
           ))}

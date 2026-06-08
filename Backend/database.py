@@ -52,9 +52,21 @@ def init_db():
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_pdfs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                filename TEXT NOT NULL,
+                uploaded_at TIMESTAMP NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(user_id, filename)
+            )
+        ''')
+
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_user_pdfs_user_id ON user_pdfs(user_id)')
 
         conn.commit()
         print("Database initialized successfully")
@@ -196,5 +208,39 @@ def rename_chat(chat_id: int, new_title: str):
         WHERE id = ?
     ''', (new_title, now, chat_id))
 
+    conn.commit()
+    conn.close()
+
+def track_user_pdf(user_id: int, filename: str):
+    """Track that a user uploaded a PDF."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+
+    try:
+        cursor.execute('''
+            INSERT OR IGNORE INTO user_pdfs (user_id, filename, uploaded_at)
+            VALUES (?, ?, ?)
+        ''', (user_id, filename, now))
+        conn.commit()
+    except Exception as e:
+        print(f"Error tracking PDF: {e}")
+    finally:
+        conn.close()
+
+def get_user_pdfs(user_id: int):
+    """Get all PDFs uploaded by a user."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT filename FROM user_pdfs WHERE user_id = ? ORDER BY uploaded_at DESC', (user_id,))
+    pdfs = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return pdfs
+
+def delete_user_pdf(user_id: int, filename: str):
+    """Remove PDF tracking for a user."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM user_pdfs WHERE user_id = ? AND filename = ?', (user_id, filename))
     conn.commit()
     conn.close()

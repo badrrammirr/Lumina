@@ -1,4 +1,5 @@
 import os
+import database
 import json
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -16,7 +17,7 @@ from pdf_handler import build_vector_database, get_vector_db
 from config import PDF_FOLDER, CHROMA_DIR
 from preformance_analyzer import analyze_results
 from adapt_quiz import generate_adaptive_quiz
-from database import init_db, get_user_by_username, get_user_by_id, create_user, update_last_login, get_user_chats, get_chat_messages, create_chat, add_message, delete_chat, rename_chat
+from database import init_db, get_user_by_username, get_user_by_id, create_user, update_last_login, get_user_chats, get_chat_messages, create_chat, add_message, delete_chat, rename_chat, track_user_pdf, get_user_pdfs, delete_user_pdf
 from auth import hash_password, verify_password, create_access_token, verify_token
 from validation import validate_username, validate_email, validate_password, validate_title, validate_content, validate_question, validate_page_params, validate_quiz_params
 
@@ -39,7 +40,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -178,11 +179,9 @@ def ask_endpoint(question: str, k: int = 3, source: str = None):
 
 
 @app.post("/upload_pdf")
-async def upload_pdf(file: UploadFile = File(...)):
-    # --- ADD THIS CLEANUP LOGIC ---
+async def upload_pdf(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     # Automatically fix "file.pdf.pdf.pdf" to "file.pdf"
     clean_filename = re.sub(r'(\.pdf)+$', '.pdf', file.filename, flags=re.IGNORECASE)
-    # --------------------------------
 
     file_path = os.path.join(PDF_FOLDER, clean_filename)
 
@@ -190,7 +189,11 @@ async def upload_pdf(file: UploadFile = File(...)):
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
-        print(f"{clean_filename} uploaded.")  # Notice we log the clean name now
+        print(f"{clean_filename} uploaded by user {current_user['username']}")
+
+        # Track this PDF for the current user
+        track_user_pdf(current_user["id"], clean_filename)
+
         build_vector_database()
         return {"message": f"{clean_filename} uploaded and database updated."}
     except Exception as e:
@@ -199,21 +202,37 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 
 @app.delete("/pdf/{filename}")
-async def delete_pdf(filename: str):
+async def delete_pdf(filename: str, current_user: dict = Depends(get_current_user)):
+    # Verify user owns this PDF
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM user_pdfs WHERE user_id = ? AND filename = ?', (current_user["id"], filename))
+    pdf_record = cursor.fetchone()
+    conn.close()
+    
+    if not pdf_record:
+        raise HTTPException(status_code=404, detail="PDF not found or access denied.")
+    
     file_path = os.path.join(PDF_FOLDER, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk.")
+    
+    # Remove from disk
     try:
         os.remove(file_path)
     except Exception as e:
         print(f"Error deleting file: {e}")
         raise HTTPException(status_code=500, detail="Error deleting file from disk.")
+    
+    # Remove vectors from database
     try:
         vectordb = get_vector_db()
         vectordb._collection.delete(where={"source_file": filename})
         print(f"Deleted vectors for {filename}")
     except Exception as e:
         print(f"Warning: Could not delete vectors: {e}")
+    
+    # Update processed list
     try:
         proc_file = Path(__file__).parent / "processed_pdfs.json"
         if proc_file.exists():
@@ -225,6 +244,7 @@ async def delete_pdf(filename: str):
                     json.dump(list(processed), f)
     except Exception as e:
         print(f"Error updating processed list: {e}")
+    
     return {"message": f"{filename} deleted successfully."}
 
 
@@ -250,9 +270,10 @@ def generate_adaptive_quiz_endpoint(weak_chunks: list = Body(...)):
 
 
 @app.get("/pdfs")
-def list_pdfs():
-    files = [f for f in os.listdir(PDF_FOLDER) if f.endswith(".pdf")]
-    return {"pdfs": files}
+def list_pdfs(current_user: dict = Depends(get_current_user)):
+    """Get PDFs uploaded by the current user."""
+    pdfs = get_user_pdfs(current_user["id"])
+    return {"pdfs": pdfs}
 
 
 @app.get("/")
@@ -341,6 +362,16 @@ def create_new_chat(req: CreateChatRequest, current_user: dict = Depends(get_cur
 
 @app.get("/chats/{chat_id}")
 def get_chat(chat_id: int, current_user: dict = Depends(get_current_user)):
+    # Verify chat belongs to current user
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM chats WHERE id = ?', (chat_id,))
+    chat = cursor.fetchone()
+    conn.close()
+    
+    if not chat or chat["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Chat not found or access denied.")
+    
     try:
         messages = get_chat_messages(chat_id)
         return {"chat_id": chat_id, "messages": messages}
@@ -350,6 +381,16 @@ def get_chat(chat_id: int, current_user: dict = Depends(get_current_user)):
 
 @app.post("/chats/{chat_id}/messages")
 def add_chat_message(chat_id: int, req: MessageRequest, current_user: dict = Depends(get_current_user)):
+    # Verify chat belongs to current user
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM chats WHERE id = ?', (chat_id,))
+    chat = cursor.fetchone()
+    conn.close()
+    
+    if not chat or chat["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Chat not found or access denied.")
+    
     try:
         message_id = add_message(chat_id, req.role, req.content)
         return {"message_id": message_id, "status": "Message added"}
@@ -359,6 +400,16 @@ def add_chat_message(chat_id: int, req: MessageRequest, current_user: dict = Dep
 
 @app.delete("/chats/{chat_id}")
 def delete_user_chat(chat_id: int, current_user: dict = Depends(get_current_user)):
+    # Verify chat belongs to current user
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM chats WHERE id = ?', (chat_id,))
+    chat = cursor.fetchone()
+    conn.close()
+    
+    if not chat or chat["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Chat not found or access denied.")
+    
     try:
         delete_chat(chat_id)
         return {"message": "Chat deleted successfully"}
@@ -368,6 +419,16 @@ def delete_user_chat(chat_id: int, current_user: dict = Depends(get_current_user
 
 @app.patch("/chats/{chat_id}")
 def rename_user_chat(chat_id: int, req: CreateChatRequest, current_user: dict = Depends(get_current_user)):
+    # Verify chat belongs to current user
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM chats WHERE id = ?', (chat_id,))
+    chat = cursor.fetchone()
+    conn.close()
+    
+    if not chat or chat["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Chat not found or access denied.")
+    
     try:
         title = validate_title(req.title)
         rename_chat(chat_id, title)
@@ -387,7 +448,17 @@ def status():
 # Your frontend just needs to call: http://127.0.0.1:8000/pdf-file/YOUR_FILE.pdf
 # ==========================================
 @app.get("/pdf-file/{filename}")
-def serve_pdf(filename: str):
+def serve_pdf(filename: str, current_user: dict = Depends(get_current_user)):
+    # Verify user owns this PDF
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM user_pdfs WHERE user_id = ? AND filename = ?', (current_user["id"], filename))
+    pdf_record = cursor.fetchone()
+    conn.close()
+    
+    if not pdf_record:
+        raise HTTPException(status_code=404, detail="File not found or access denied.")
+    
     file_path = os.path.join(PDF_FOLDER, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found.")

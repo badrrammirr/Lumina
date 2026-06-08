@@ -8,14 +8,25 @@ import { HiOutlineBolt, HiOutlineArrowLeft } from 'react-icons/hi2'
 import { Link } from 'react-router-dom'
 
 export default function AdaptiveQuizPage() {
-  const { weakChunks } = useApp()
+  const { weakChunks, isAuthorized } = useApp()
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [score, setScore] = useState({ correct: 0, total: 0 })
   const [error, setError] = useState(null)
 
+  // Reset state when user logs out
+  useEffect(() => {
+    if (!isAuthorized) {
+      setQuestions([])
+      setScore({ correct: 0, total: 0 })
+      setError(null)
+      setLoading(true)
+    }
+  }, [isAuthorized])
+
   useEffect(() => {
     const autoGenerate = async () => {
+      if (!isAuthorized) return
       if (!weakChunks?.length) {
         setError("No weak nodes identified. Please complete a standard quiz first to map your knowledge gaps.")
         setLoading(false)
@@ -34,12 +45,14 @@ export default function AdaptiveQuizPage() {
           else setError("AI returned empty query set.")
         } else setError("AI returned invalid structural format.")
       } catch (e) {
-        setError("Failed to establish adaptive link.")
+        // BUG FIX: Better error message extraction
+        const errorMsg = e.response?.data?.detail || e.message || "Failed to establish adaptive link"
+        setError(errorMsg)
       }
       finally { setLoading(false) }
     }
     autoGenerate()
-  }, [weakChunks])
+  }, [weakChunks, isAuthorized])
 
   const handleAnswer = (isCorrect) => {
     if (isCorrect) {

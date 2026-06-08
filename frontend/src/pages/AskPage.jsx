@@ -6,12 +6,21 @@ import { HiOutlinePaperAirplane, HiOutlineChatBubbleLeftRight } from 'react-icon
 import { motion } from 'framer-motion'
 
 export default function AskPage() {
-  const { pdfs } = useApp()
+  const { pdfs, isAuthorized } = useApp()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [source, setSource] = useState('')
   const endRef = useRef(null)
+
+  // Reset messages when user logs out
+  useEffect(() => {
+    if (!isAuthorized) {
+      setMessages([])
+      setInput('')
+      setSource('')
+    }
+  }, [isAuthorized])
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 

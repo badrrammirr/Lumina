@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { analyzeResults } from '../api/api'
 import { useApp } from '../context/AppContext'
 import PerformanceChart from '../components/PerformanceChart'
@@ -8,11 +8,20 @@ import { HiOutlineChartBar, HiOutlineExclamationTriangle, HiOutlineBolt } from '
 import { Link } from 'react-router-dom'
 
 export default function PerformancePage() {
-  const { setWeakChunks, quizResults } = useApp()
+  const { setWeakChunks, quizResults, isAuthorized } = useApp()
   const [results, setResults] = useState(null)
   const [weakList, setWeakList] = useState([])
   const [loading, setLoading] = useState(false)
   const [chartData, setChartData] = useState([])
+
+  // Reset state when user logs out
+  useEffect(() => {
+    if (!isAuthorized) {
+      setResults(null)
+      setWeakList([])
+      setChartData([])
+    }
+  }, [isAuthorized])
 
   const analyze = async () => {
     setLoading(true)
@@ -45,7 +54,9 @@ export default function PerformancePage() {
       setResults(true)
       toast.success('Diagnostics complete.')
     } catch (e) {
-      toast.error('Failed to analyze performance matrix.')
+      // BUG FIX: Better error message extraction from axios errors
+      const errorMsg = e.response?.data?.detail || e.message || 'Unknown error occurred'
+      toast.error(`Failed to analyze performance matrix: ${errorMsg}`)
     }
     setLoading(false)
   }

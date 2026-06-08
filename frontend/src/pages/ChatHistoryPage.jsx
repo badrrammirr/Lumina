@@ -3,8 +3,10 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { HiOutlineTrash, HiOutlinePlus, HiOutlineArrowRight, HiOutlinePencilSquare } from 'react-icons/hi2'
 import { getChats, deleteChat, createChat, renameChat } from '../api/api'
+import { useApp } from '../context/AppContext'
 
 export default function ChatHistoryPage() {
+  const { isAuthorized, user } = useApp()
   const [chats, setChats] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedChat, setSelectedChat] = useState(null)
@@ -14,8 +16,13 @@ export default function ChatHistoryPage() {
   const [renameTitle, setRenameTitle] = useState('')
 
   useEffect(() => {
-    fetchChats()
-  }, [])
+    if (isAuthorized && user) {
+      fetchChats()
+    } else {
+      setChats([])
+      setSelectedChat(null)
+    }
+  }, [isAuthorized, user])
 
   const fetchChats = async () => {
     setLoading(true)
@@ -37,13 +44,24 @@ export default function ChatHistoryPage() {
     }
 
     try {
-      await createChat(newChatTitle)
+      const response = await createChat(newChatTitle)
       toast.success('Chat created successfully')
+
+      // Immediately add the new chat to state instead of refetching all chats
+      const newChat = {
+        id: response.id,
+        title: response.title || newChatTitle,
+        created_at: response.created_at || new Date().toISOString(),
+        updated_at: response.updated_at || new Date().toISOString()
+      }
+      setChats(prev => [newChat, ...prev])
+      setSelectedChat(newChat)
+
       setNewChatTitle('')
       setShowNewChatDialog(false)
-      fetchChats()
     } catch (error) {
-      toast.error('Failed to create chat')
+      const message = error.response?.data?.detail || 'Failed to create chat'
+      toast.error(message)
     }
   }
 
@@ -73,9 +91,14 @@ export default function ChatHistoryPage() {
       toast.success('Chat renamed successfully')
       setRenamingChatId(null)
       setRenameTitle('')
-      fetchChats()
+      // Update local state to reflect rename immediately
+      setChats(prev => prev.map(c => c.id === chatId ? { ...c, title: newName, updated_at: new Date().toISOString() } : c))
+      if (selectedChat?.id === chatId) {
+        setSelectedChat(prev => ({ ...prev, title: newName }))
+      }
     } catch (error) {
-      toast.error('Failed to rename chat')
+      const message = error.response?.data?.detail || 'Failed to rename chat'
+      toast.error(message)
     }
   }
 

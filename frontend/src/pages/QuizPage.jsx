@@ -1,18 +1,29 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { generateQuiz } from '../api/api'
 import { useApp } from '../context/AppContext'
+import { Link } from 'react-router-dom'
 import QuizCard from '../components/QuizCard'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HiOutlineSparkles, HiOutlineAcademicCap } from 'react-icons/hi2'
 
 export default function QuizPage() {
-  const { pdfs, setQuizResults } = useApp()
+  const { pdfs, setQuizResults, isAuthorized } = useApp()
   const [topic, setTopic] = useState('')
   const [source, setSource] = useState('')
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(false)
   const [score, setScore] = useState({ correct: 0, total: 0 })
+
+  // Reset state when user logs out
+  useEffect(() => {
+    if (!isAuthorized) {
+      setQuestions([])
+      setScore({ correct: 0, total: 0 })
+      setTopic('')
+      setSource('')
+    }
+  }, [isAuthorized])
 
   const handleGenerateQuiz = async () => {
     setLoading(true)
@@ -35,7 +46,9 @@ export default function QuizPage() {
         throw new Error('Could not parse quiz structure.')
       }
     } catch (e) {
-      toast.error(e.message || 'Failed to generate matrix')
+      // BUG FIX: Better error message extraction
+      const errorMsg = e.response?.data?.detail || e.message || 'Failed to generate matrix'
+      toast.error(`Failed: ${errorMsg}`)
     }
     setLoading(false)
   }
@@ -97,13 +110,32 @@ export default function QuizPage() {
         </div>
         <button
           onClick={handleGenerateQuiz}
-          disabled={loading}
+          disabled={loading || !pdfs || pdfs.length === 0}
           className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-white font-semibold transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed bg-gradient-to-r from-violet-500 to-purple-600 hover:shadow-[0_0_30px_rgba(139,92,246,0.3)] hover:scale-[1.01] active:scale-[0.99]"
         >
           {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <HiOutlineSparkles className="w-5 h-5" />}
           {loading ? 'Generating Matrix...' : 'Initialize 20 Queries'}
         </button>
       </div>
+
+      {/* Empty State - No PDFs uploaded */}
+      {!loading && (!pdfs || pdfs.length === 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-12 text-center"
+        >
+          <HiOutlineAcademicCap className="w-12 h-12 text-violet-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-200 mb-2">No Documents Available</h3>
+          <p className="text-sm text-gray-500 mb-4">Upload a PDF first to generate quiz questions.</p>
+          <Link
+            to="/upload"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-medium hover:shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all"
+          >
+            Go to Upload
+          </Link>
+        </motion.div>
+      )}
 
       {/* Premium Score Tracker */}
       {questions.length > 0 && (

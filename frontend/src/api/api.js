@@ -87,7 +87,6 @@ export async function uploadPDF(file) {
   const form = new FormData()
   form.append('file', file)
   const res = await api.post('/upload_pdf', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 120000,
   })
   return res.data
@@ -139,6 +138,13 @@ export async function generateFlashcards(source = null, numCards = 10) {
   const res = await api.post('/generate_flashcards', {
     source: source,
     num_cards: numCards
+  })
+  return res.data
+}
+
+export async function getPdfBlob(filename) {
+  const res = await api.get(`/pdf-file/${encodeURIComponent(filename)}`, {
+    responseType: 'blob',
   })
   return res.data
 }

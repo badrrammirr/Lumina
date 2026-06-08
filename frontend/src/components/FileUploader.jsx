@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { uploadPDF } from '../api/api'
 import { useApp } from '../context/AppContext'
@@ -7,27 +7,36 @@ import toast from 'react-hot-toast'
 import { HiOutlineCloudArrowUp, HiOutlineDocument, HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2'
 
 export default function FileUploader() {
-  const { refreshPDFs, refreshStatus } = useApp()
+  const { refreshPDFs, refreshStatus, userId } = useApp()
   const [files, setFiles] = useState([])
 
-  const onDrop = useCallback((accepted) => {
+  // Reset files state when user changes (account switching)
+  useEffect(() => {
+    setFiles([])
+  }, [userId])
+
+  const onDrop = useCallback(async (accepted) => {
     const newFiles = accepted.map(f => ({ file: f, status: 'pending', progress: 0 }))
     setFiles(prev => [...prev, ...newFiles])
 
-    newFiles.forEach(async (item) => {
+    // Process each file sequentially with proper async/await error handling
+    for (const item of newFiles) {
       setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: 'uploading', progress: 50 } : f))
       try {
         await uploadPDF(item.file)
         setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: 'done', progress: 100 } : f))
         toast.success(`${item.file.name} uploaded!`)
-        refreshPDFs()
-        refreshStatus()
       } catch (e) {
+        // BUG FIX: Handle errors properly - access response data correctly for axios errors
+        const errorMsg = e.response?.data?.detail || e.message || 'Upload failed'
         setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: 'error' } : f))
-        toast.error(`Failed: ${item.file.name}`)
+        toast.error(`Failed: ${item.file.name} - ${errorMsg}`)
       }
-    })
-  }, [])
+    }
+    // Refresh PDFs and status only once after all uploads complete
+    refreshPDFs()
+    refreshStatus()
+  }, [refreshPDFs, refreshStatus])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

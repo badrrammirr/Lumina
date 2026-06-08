@@ -11,6 +11,7 @@ export function AppProvider({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [user, setUser] = useState(null)
   const [isAuthorized, setIsAuthorized] = useState(true)
+  const [userId, setUserId] = useState(null)
 
   const refreshStatus = async () => {
     try {
@@ -31,28 +32,57 @@ export function AppProvider({ children }) {
       const userData = await getMe()
       setUser(userData)
       setIsAuthorized(true)
+      setUserId(userData.id)
+      // Fetch PDFs only after confirming user is authorized
+      await refreshPDFs()
+      await refreshStatus()
     } catch (error) {
       setIsAuthorized(false)
+      setUserId(null)
+      // Clear user-specific data on auth failure
+      clearUserData()
     }
+  }
+
+  const clearUserData = () => {
+    setPdfs([])
+    setDbReady(false)
+    setQuizResults([])
+    setWeakChunks([])
+    setUser(null)
+    setUserId(null)
   }
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (!token) {
       setIsAuthorized(false)
+      clearUserData()
       return
     }
 
     verifyUser()
-    refreshStatus()
-    refreshPDFs()
+  }, [])
+
+  // Listen for storage changes (logout from other tabs)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'access_token' && !e.newValue) {
+        clearUserData()
+        setIsAuthorized(false)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
   return (
     <AppContext.Provider value={{
       pdfs, setPdfs, fetchPDFs, dbReady, setDbReady, quizResults, setQuizResults,
       weakChunks, setWeakChunks, sidebarOpen, setSidebarOpen,
-      refreshStatus, refreshPDFs, user, setUser, isAuthorized, setIsAuthorized
+      refreshStatus, refreshPDFs, user, setUser, isAuthorized, setIsAuthorized,
+      clearUserData, userId
     }}>
       {children}
     </AppContext.Provider>

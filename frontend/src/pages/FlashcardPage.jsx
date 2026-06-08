@@ -1,6 +1,7 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { generateFlashcards } from "../api/api"
 import { useApp } from "../context/AppContext"
+import { Link } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import toast from "react-hot-toast"
 import {
@@ -94,7 +95,7 @@ function Flashcard({ card, index, onMark }) {
 }
 
 export default function FlashcardPage() {
-  const { pdfs } = useApp()
+  const { pdfs, isAuthorized, userId } = useApp()
   const [source, setSource] = useState("")
   const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(false)
@@ -102,9 +103,22 @@ export default function FlashcardPage() {
   const [numCards, setNumCards] = useState(10)
   const [showReview, setShowReview] = useState(false)
 
+  // Reset state when user logs out or pdfs change
+  useEffect(() => {
+    if (!isAuthorized) {
+      setCards([])
+      setCurrentIndex(0)
+      setSource("")
+      setShowReview(false)
+    }
+  }, [isAuthorized])
+
+  // Load review list from localStorage scoped to user
   const [reviewList, setReviewList] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("flashcard_review") || "[]") }
-    catch { return [] }
+    try {
+      const key = userId ? `flashcard_review_${userId}` : "flashcard_review"
+      return JSON.parse(localStorage.getItem(key) || "[]")
+    } catch { return [] }
   })
 
   const knowCount = reviewList.filter(r => r.mark === "know").length
@@ -130,7 +144,9 @@ export default function FlashcardPage() {
         }
       }
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Failed to generate sparks")
+      // BUG FIX: Better error message extraction from axios errors
+      const errorMsg = e.response?.data?.detail || e.message || 'Failed to generate sparks'
+      toast.error(`Failed: ${errorMsg}`)
     }
     setLoading(false)
   }
@@ -141,7 +157,8 @@ export default function FlashcardPage() {
     if (existingIndex > -1) updated.splice(existingIndex, 1)
     updated.push({ index, mark })
     setReviewList(updated)
-    localStorage.setItem("flashcard_review", JSON.stringify(updated))
+    const key = userId ? `flashcard_review_${userId}` : "flashcard_review"
+    localStorage.setItem(key, JSON.stringify(updated))
   }
 
   return (
@@ -177,13 +194,32 @@ export default function FlashcardPage() {
         </div>
         <button
           onClick={handleGenerate}
-          disabled={loading || !source}
+          disabled={loading || !pdfs || pdfs.length === 0}
           className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-white font-semibold transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed bg-gradient-to-r from-pink-500 to-rose-600 hover:shadow-[0_0_30px_rgba(236,72,153,0.3)] hover:scale-[1.01] active:scale-[0.99]"
         >
           {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <HiOutlineSparkles className="w-5 h-5" />}
           {loading ? "Igniting..." : "Generate Sparks"}
         </button>
       </div>
+
+      {/* Empty State - No PDFs uploaded */}
+      {!loading && (!pdfs || pdfs.length === 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-12 text-center"
+        >
+          <HiOutlineSparkles className="w-12 h-12 text-pink-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-200 mb-2">No Documents Available</h3>
+          <p className="text-sm text-gray-500 mb-4">Upload a PDF first to generate flashcards.</p>
+          <Link
+            to="/upload"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white text-sm font-medium hover:shadow-[0_0_20px_rgba(236,72,153,0.3)] transition-all"
+          >
+            Go to Upload
+          </Link>
+        </motion.div>
+      )}
 
       {/* Active Flashcard Area */}
       {cards.length > 0 && (
@@ -253,19 +289,19 @@ export default function FlashcardPage() {
           >
             <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-6">
               <h3 className="text-sm font-bold text-gray-200 mb-4 uppercase tracking-wider">Session Log</h3>
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-2">
-                {reviewList.map((r, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className={`flex items-center gap-4 p-3 rounded-xl transition-all duration-300 group ${
-                      r.mark === "know"
-                        ? "bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10"
-                        : "bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04]"
-                    }`}
-                  >
+<div className="space-y-2 max-h-72 overflow-y-auto pr-2">
+                 {reviewList.map((r, i) => (
+                   <motion.div
+                     key={r.index || i}
+                     initial={{ opacity: 0, y: 10 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     transition={{ delay: i * 0.05 }}
+                     className={`flex items-center gap-4 p-3 rounded-xl transition-all duration-300 group ${
+                       r.mark === "know"
+                         ? "bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10"
+                         : "bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04]"
+                     }`}
+                   >
                     <span className="text-xs text-gray-600 font-mono w-6 text-right">{r.index + 1}</span>
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${r.mark === "know" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"}`}></div>
                     <p className="text-sm text-gray-300 flex-1 truncate group-hover:text-white transition-colors">{cards[r.index] ? cards[r.index].front : "Card " + r.index}</p>
