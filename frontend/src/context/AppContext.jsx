@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { fetchStatus, fetchPDFs } from '../api/api'
+import { fetchStatus, fetchPDFs, getMe } from '../api/api'
 
 const AppContext = createContext()
 
@@ -9,6 +9,8 @@ export function AppProvider({ children }) {
   const [quizResults, setQuizResults] = useState([])
   const [weakChunks, setWeakChunks] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [user, setUser] = useState(null)
+  const [isAuthorized, setIsAuthorized] = useState(true)
 
   const refreshStatus = async () => {
     try {
@@ -24,7 +26,24 @@ export function AppProvider({ children }) {
     } catch { setPdfs([]) }
   }
 
+  const verifyUser = async () => {
+    try {
+      const userData = await getMe()
+      setUser(userData)
+      setIsAuthorized(true)
+    } catch (error) {
+      setIsAuthorized(false)
+    }
+  }
+
   useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    if (!token) {
+      setIsAuthorized(false)
+      return
+    }
+
+    verifyUser()
     refreshStatus()
     refreshPDFs()
   }, [])
@@ -33,7 +52,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       pdfs, setPdfs, fetchPDFs, dbReady, setDbReady, quizResults, setQuizResults,
       weakChunks, setWeakChunks, sidebarOpen, setSidebarOpen,
-      refreshStatus, refreshPDFs
+      refreshStatus, refreshPDFs, user, setUser, isAuthorized, setIsAuthorized
     }}>
       {children}
     </AppContext.Provider>

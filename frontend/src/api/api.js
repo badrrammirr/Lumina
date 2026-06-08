@@ -7,6 +7,75 @@ const api = axios.create({
   timeout: 30000,
 })
 
+// Add token to requests if available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Authentication
+export async function register(username, password, email = null) {
+  const res = await api.post('/register', { username, password, email })
+  if (res.data.access_token) {
+    localStorage.setItem('access_token', res.data.access_token)
+  }
+  return res.data
+}
+
+export async function login(username, password) {
+  const res = await api.post('/login', { username, password })
+  if (res.data.access_token) {
+    localStorage.setItem('access_token', res.data.access_token)
+  }
+  return res.data
+}
+
+export async function logout() {
+  localStorage.removeItem('access_token')
+  const res = await api.post('/logout')
+  return res.data
+}
+
+export async function getMe() {
+  const res = await api.get('/me')
+  return res.data
+}
+
+// Chat History
+export async function getChats() {
+  const res = await api.get('/chats')
+  return res.data
+}
+
+export async function createChat(title) {
+  const res = await api.post('/chats', { title })
+  return res.data
+}
+
+export async function getChat(chatId) {
+  const res = await api.get(`/chats/${chatId}`)
+  return res.data
+}
+
+export async function addChatMessage(chatId, content, role) {
+  const res = await api.post(`/chats/${chatId}/messages`, { content, role })
+  return res.data
+}
+
+export async function deleteChat(chatId) {
+  const res = await api.delete(`/chats/${chatId}`)
+  return res.data
+}
+
+export async function renameChat(chatId, title) {
+  const res = await api.patch(`/chats/${chatId}`, { title })
+  return res.data
+}
+
+// Original endpoints
 export async function askQuestion(question, k = 3, source = null) {
   const params = { question, k }
   if (source) params.source = source

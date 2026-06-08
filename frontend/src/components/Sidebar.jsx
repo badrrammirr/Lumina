@@ -5,7 +5,7 @@ import {
   HiOutlineHome, HiOutlineChatBubbleLeftRight, HiOutlineCloudArrowUp,
   HiOutlineAcademicCap, HiOutlineChartBar, HiOutlineBolt,
   HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineDocumentText,
-  HiOutlineRectangleStack, HiOutlineSparkles
+  HiOutlineRectangleStack, HiOutlineSparkles, HiOutlineClock
 } from 'react-icons/hi2'
 
 const navSections = [
@@ -14,6 +14,7 @@ const navSections = [
     links: [
       { to: '/', icon: HiOutlineHome, label: 'Dashboard' },
       { to: '/ask', icon: HiOutlineChatBubbleLeftRight, label: 'Ask AI' },
+      { to: '/chat-history', icon: HiOutlineClock, label: 'Chat History' },
     ]
   },
   {

@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 from pathlib import Path
 import os
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).parent
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR.parent / ".env")
 PDF_FOLDER = BASE_DIR / "pdfs"
 CHROMA_DIR = BASE_DIR / "chroma_db"
 CHUNK_SIZE = 1000
