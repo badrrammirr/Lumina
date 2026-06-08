@@ -4,6 +4,9 @@ Backend/venv/
 Backend/.env
 Backend/uploads/
 Backend/chroma_db/
+Backend/pdfs/
+Backend/lumina.db
+Backend/processed_pdfs.json
 frontend/node_modules/
 frontend/dist
 .DS_Store
