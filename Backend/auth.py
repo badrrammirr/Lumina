@@ -2,7 +2,9 @@ import jwt
 import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional
-from config import GROQ_API_KEY
+from config import GROQ_API_KEY, SECRET_KEY as _SECRET_KEY
+
+SECRET_KEY = _SECRET_KEY
 
 SECRET_KEY = GROQ_API_KEY or "your-secret-key-change-in-production"
 ALGORITHM = "HS256"
@@ -24,6 +26,8 @@ def verify_password(password: str, password_hash: str) -> bool:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
 
     if expires_delta:
         expire = datetime.utcnow() + expires_delta

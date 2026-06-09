@@ -38,11 +38,10 @@ function Flashcard({ card, index, onMark }) {
                 {card.topic}
               </span>
             )}
-            <div className="my-auto w-full flex flex-col items-center overflow-y-auto pr-2" style={{ maxHeight: "100%" }}>
-              <p className="text-gray-200 font-medium text-center text-base leading-relaxed">
-                {card.front}
-              </p>
+            <div className="flex-1 min-h-0 w-full flex flex-col items-center overflow-y-auto pr-2">
+              <p className="text-gray-200 font-medium text-center text-base leading-relaxed">{card.front}</p>
             </div>
+
           </div>
 
           {/* BACK FACE */}
@@ -50,11 +49,12 @@ function Flashcard({ card, index, onMark }) {
             className="absolute inset-0 flex flex-col p-8 bg-gray-800/90 backdrop-blur-xl border border-pink-500/15 rounded-2xl"
             style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
           >
-            <div className="my-auto w-full flex flex-col items-center overflow-y-auto pr-2" style={{ maxHeight: "100%" }}>
+            <div className="flex-1 min-h-0 w-full flex flex-col items-center overflow-y-auto pr-2">
               <p className="text-gray-200 font-light text-center text-base leading-relaxed">
                 {card.back}
               </p>
             </div>
+
           </div>
         </motion.div>
       </div>

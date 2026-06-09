@@ -13,3 +13,4 @@ CHUNK_OVERLAP = 200
 NUM_QUIZ_QUESTIONS = 20
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "missing_key")
+SECRET_KEY = os.environ.get("SECRET_KEY") or GROQ_API_KEY

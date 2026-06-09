@@ -18,6 +18,7 @@ export default function PDFViewer({ fileUrl, filename }) {
   const [numPages, setNumPages] = useState(null)
   const [page, setPage] = useState(1)
   const [scale, setScale] = useState(1.0)
+
   const [pdfBlob, setPdfBlob] = useState(null)
   const [loadingBlob, setLoadingBlob] = useState(false)
   const [blobError, setBlobError] = useState(false)
@@ -32,8 +33,9 @@ export default function PDFViewer({ fileUrl, filename }) {
 
     setLoadingBlob(true)
     setBlobError(false)
+
     getPdfBlob(filename)
-      .then(blob => {
+      .then((blob) => {
         setPdfBlob(new Blob([blob], { type: 'application/pdf' }))
       })
       .catch(() => {
@@ -44,6 +46,32 @@ export default function PDFViewer({ fileUrl, filename }) {
         setLoadingBlob(false)
       })
   }, [fileUrl, filename])
+
+  useEffect(() => {
+    if (!pdfBlob) return
+
+    // Create a stable blob URL for react-pdf
+    const url = URL.createObjectURL(pdfBlob)
+    // Stash it on the instance to keep the API identical
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => URL.revokeObjectURL(url)
+  }, [pdfBlob])
+
+  const [blobUrl, setBlobUrl] = useState("")
+
+  useEffect(() => {
+    if (!pdfBlob) {
+      setBlobUrl("")
+      return
+    }
+
+    const url = URL.createObjectURL(pdfBlob)
+    setBlobUrl(url)
+
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [pdfBlob])
 
   function onDocumentLoadSuccess({ numPages }) {
     setNumPages(numPages)
@@ -81,8 +109,6 @@ export default function PDFViewer({ fileUrl, filename }) {
     )
   }
 
-  const blobUrl = pdfBlob ? URL.createObjectURL(pdfBlob) : ""
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between glass px-4 py-3">
@@ -90,29 +116,60 @@ export default function PDFViewer({ fileUrl, filename }) {
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 font-mono">Page {page} / {numPages}</span>
 
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            type="button"
+          >
             <HiOutlineChevronLeft className="w-4 h-4" />
           </button>
 
-          <button onClick={() => setPage(p => Math.min(numPages || 1, p + 1))} disabled={page >= (numPages || 1)} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+          <button
+            onClick={() => setPage((p) => Math.min(numPages || 1, p + 1))}
+            disabled={page >= (numPages || 1)}
+            className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            type="button"
+          >
             <HiOutlineChevronRight className="w-4 h-4" />
           </button>
 
           <div className="w-px h-4 bg-white/10 mx-1"></div>
 
-          <button onClick={() => setScale(s => Math.min(2, s + 0.2))} disabled={scale >= 2} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+          <button
+            onClick={() => setScale((s) => Math.min(2, s + 0.2))}
+            disabled={scale >= 2}
+            className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            type="button"
+          >
             <HiOutlineMagnifyingGlassPlus className="w-4 h-4" />
           </button>
 
-          <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} disabled={scale <= 0.5} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+          <button
+            onClick={() => setScale((s) => Math.max(0.5, s - 0.2))}
+            disabled={scale <= 0.5}
+            className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            type="button"
+          >
             <HiOutlineMagnifyingGlassMinus className="w-4 h-4" />
           </button>
 
           <div className="w-px h-4 bg-white/10 mx-1"></div>
 
           {blobUrl && (
-            <a href={blobUrl} download={filename || "document.pdf"} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors" title="Download PDF">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+            <a
+              href={blobUrl}
+              download={filename || "document.pdf"}
+              className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
+              title="Download PDF"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                />
+              </svg>
             </a>
           )}
         </div>
@@ -148,3 +205,4 @@ export default function PDFViewer({ fileUrl, filename }) {
     </div>
   )
 }
+

@@ -39,7 +39,7 @@ export default function Dashboard() {
     try {
       await deletePDF(filename)
       toast.success(`${filename} purged from system`)
-      fetchPDFs()
+      refreshPDFs()
     } catch (e) {
       toast.error('Deletion failed')
     }

@@ -79,9 +79,9 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      pdfs, setPdfs, fetchPDFs, dbReady, setDbReady, quizResults, setQuizResults,
+      pdfs, setPdfs, refreshPDFs, dbReady, setDbReady, quizResults, setQuizResults,
       weakChunks, setWeakChunks, sidebarOpen, setSidebarOpen,
-      refreshStatus, refreshPDFs, user, setUser, isAuthorized, setIsAuthorized,
+      refreshStatus, user, setUser, isAuthorized, setIsAuthorized,
       clearUserData, userId
     }}>
       {children}

@@ -232,6 +232,13 @@ async def delete_pdf(filename: str, current_user: dict = Depends(get_current_use
     except Exception as e:
         print(f"Warning: Could not delete vectors: {e}")
     
+    # Remove database record
+    try:
+        delete_user_pdf(current_user["id"], filename)
+        print(f"Removed database record for {filename}")
+    except Exception as e:
+        print(f"Error deleting database record: {e}")
+    
     # Update processed list
     try:
         proc_file = Path(__file__).parent / "processed_pdfs.json"

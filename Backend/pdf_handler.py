@@ -17,8 +17,13 @@ embedding_model = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 def load_processed_pdfs():
     """Load the set of already processed PDF filenames."""
     if os.path.exists(PROCESSED_LIST_FILE):
-        with open(PROCESSED_LIST_FILE, 'r') as f:
-            return set(json.load(f))
+        try:
+            with open(PROCESSED_LIST_FILE, 'r') as f:
+                content = f.read().strip()
+                if content:
+                    return set(json.loads(content))
+        except (json.JSONDecodeError, ValueError):
+            pass
     return set()
 
 def save_processed_pdfs(processed_set):
